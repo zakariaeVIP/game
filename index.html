@@ -251,7 +251,9 @@
             }
         }
 
-        document.addEventListener('keydown', (event) => {
+        document.addEventListener('DOMContentLoaded', () => {
+            resetGame();
+            gameLoop = setInterval(drawGame, gameSpeed);
             if (isGameOver) return;
             
             const directions = {
