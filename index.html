@@ -250,10 +250,17 @@
                 );
             }
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            resetGame();
-            gameLoop = setInterval(drawGame, gameSpeed);
+        document.addEventListener('keydown', (event) => {
+            const keyMap = {
+                'ArrowLeft': 'LEFT',
+                'ArrowUp': 'UP',
+                'ArrowRight': 'RIGHT',
+                'ArrowDown': 'DOWN',
+            };
+            if (keyMap[event.key]) {
+                handleMobileControl(keyMap[event.key]);
+            }
+        });
             if (isGameOver) return;
             
             const directions = {
@@ -425,14 +432,15 @@
                 ctx.fillStyle = `rgb(${powerupTypes[powerup.type].color})`;
                 ctx.beginPath();
                 ctx.arc(
-                    powerup.x * gridSize + gridSize/2,
-                    powerup.y * gridSize + gridSize/2,
-                    gridSize/3,
-                    0,
-                    Math.PI * 2
+                powerup.x * gridSize + gridSize / 2,
+                powerup.y * gridSize + gridSize / 2,
+                gridSize / 2 - 2,
+                0,
+                Math.PI * 2
                 );
                 ctx.fill();
-
+                ctx.shadowBlur = 0;
+            }
                 // Animated ring around powerup
                 ctx.strokeStyle = `rgb(${powerupTypes[powerup.type].color})`;
                 ctx.lineWidth = 2;
