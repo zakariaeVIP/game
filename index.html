@@ -1,62 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Enhanced Snake Game</title>
+    <title>Advanced Snake Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
             color: white;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             min-height: 100vh;
             padding: 20px;
+            overflow: hidden;
         }
 
         .game-container {
             position: relative;
             margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
         }
 
         canvas {
-            border: 3px solid #4a4e69;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            border: 3px solid #6e6efd;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(110, 110, 253, 0.3);
         }
 
         .stats {
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 15px;
+            padding: 20px;
             margin-bottom: 20px;
-            display: flex;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, auto);
+            gap: 30px;
             font-size: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .powerup-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .powerup-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
         }
 
         .controls {
             display: none;
-            grid-template-columns: repeat(3, 60px);
-            gap: 10px;
+            grid-template-columns: repeat(3, 70px);
+            gap: 15px;
             margin-top: 20px;
         }
 
         .control-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            border-radius: 5px;
+            background: rgba(110, 110, 253, 0.2);
+            border: 2px solid rgba(110, 110, 253, 0.5);
+            border-radius: 10px;
             color: white;
             cursor: pointer;
             font-size: 24px;
-            height: 60px;
-            transition: background 0.3s;
+            height: 70px;
+            transition: all 0.3s;
         }
 
         .control-btn:active {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(110, 110, 253, 0.4);
+            transform: scale(0.95);
         }
 
         @media (max-width: 768px) {
@@ -70,34 +88,49 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 15px;
             text-align: center;
             display: none;
+            backdrop-filter: blur(10px);
         }
 
         .restart-btn {
-            background: #4CAF50;
+            background: linear-gradient(45deg, #6e6efd, #4CAF50);
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             color: white;
             cursor: pointer;
-            font-size: 18px;
-            margin-top: 15px;
-            padding: 10px 20px;
-            transition: background 0.3s;
+            font-size: 20px;
+            margin-top: 20px;
+            padding: 15px 30px;
+            transition: all 0.3s;
         }
 
         .restart-btn:hover {
-            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(110, 110, 253, 0.4);
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
         }
     </style>
 </head>
 <body>
+    <canvas id="particleCanvas"></canvas>
     <div class="stats">
         <div id="score">Score: 0</div>
         <div id="highScore">High Score: 0</div>
+        <div id="powerup" class="powerup-indicator">
+            Active: None
+            <div class="powerup-icon"></div>
+        </div>
     </div>
     
     <div class="game-container">
@@ -105,6 +138,7 @@
         <div class="game-over" id="gameOver">
             <h2>Game Over!</h2>
             <p id="finalScore">Score: 0</p>
+            <p id="newHighScore" style="color: #6e6efd; display: none;">New High Score!</p>
             <button class="restart-btn" onclick="resetGame()">Play Again</button>
         </div>
     </div>
@@ -117,6 +151,59 @@
     </div>
 
     <script>
+        // Particle System
+        const particleCanvas = document.getElementById('particleCanvas');
+        const particleCtx = particleCanvas.getContext('2d');
+        
+        particleCanvas.width = window.innerWidth;
+        particleCanvas.height = window.innerHeight;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.life = 1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= 0.02;
+                if (this.size > 0.2) this.size -= 0.1;
+            }
+
+            draw() {
+                particleCtx.fillStyle = `rgba(${this.color}, ${this.life})`;
+                particleCtx.beginPath();
+                particleCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                particleCtx.fill();
+            }
+        }
+
+        let particles = [];
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function updateParticles() {
+            particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Game Logic
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gridSize = 20;
@@ -124,6 +211,7 @@
         
         let snake = [{x: 10, y: 10}];
         let food = {x: 15, y: 15};
+        let powerup = null;
         let dx = 0;
         let dy = 0;
         let score = 0;
@@ -131,62 +219,103 @@
         let gameSpeed = 100;
         let gameLoop;
         let isGameOver = false;
+        let activePowerup = null;
+        let powerupTimer = null;
+
+        const powerupTypes = {
+            speed: { color: '255, 215, 0', duration: 5000, effect: () => gameSpeed = 50 },
+            ghost: { color: '147, 112, 219', duration: 5000, effect: () => {} },
+            double: { color: '255, 69, 0', duration: 10000, effect: () => {} }
+        };
 
         document.getElementById('highScore').innerHTML = `High Score: ${highScore}`;
         
         function handleMobileControl(direction) {
-            switch(direction) {
-                case 'LEFT': 
-                    if(dx === 0) { dx = -1; dy = 0; }
-                    break;
-                case 'UP':
-                    if(dy === 0) { dx = 0; dy = -1; }
-                    break;
-                case 'RIGHT':
-                    if(dx === 0) { dx = 1; dy = 0; }
-                    break;
-                case 'DOWN':
-                    if(dy === 0) { dx = 0; dy = 1; }
-                    break;
+            if (isGameOver) return;
+            
+            const newDir = {
+                'LEFT': {dx: -1, dy: 0},
+                'UP': {dx: 0, dy: -1},
+                'RIGHT': {dx: 1, dy: 0},
+                'DOWN': {dx: 0, dy: 1}
+            }[direction];
+
+            if ((newDir.dx !== 0 && dx === 0) || (newDir.dy !== 0 && dy === 0)) {
+                dx = newDir.dx;
+                dy = newDir.dy;
+                createParticles(
+                    snake[0].x * gridSize,
+                    snake[0].y * gridSize,
+                    '110, 110, 253'
+                );
             }
         }
 
         document.addEventListener('keydown', (event) => {
             if (isGameOver) return;
             
-            switch(event.key) {
-                case 'ArrowLeft': 
-                    handleMobileControl('LEFT');
-                    break;
-                case 'ArrowUp':
-                    handleMobileControl('UP');
-                    break;
-                case 'ArrowRight':
-                    handleMobileControl('RIGHT');
-                    break;
-                case 'ArrowDown':
-                    handleMobileControl('DOWN');
-                    break;
+            const directions = {
+                'ArrowLeft': 'LEFT',
+                'ArrowUp': 'UP',
+                'ArrowRight': 'RIGHT',
+                'ArrowDown': 'DOWN'
+            };
+            
+            if (directions[event.key]) {
+                handleMobileControl(directions[event.key]);
             }
         });
+
+        function spawnPowerup() {
+            if (Math.random() < 0.1 && !powerup) {
+                const types = Object.keys(powerupTypes);
+                const type = types[Math.floor(Math.random() * types.length)];
+                do {
+                    powerup = {
+                        x: Math.floor(Math.random() * tileCount),
+                        y: Math.floor(Math.random() * tileCount),
+                        type: type
+                    };
+                } while (snake.some(part => part.x === powerup.x && part.y === powerup.y));
+            }
+        }
+
+        function activatePowerup(type) {
+            if (activePowerup) {
+                clearTimeout(powerupTimer);
+                gameSpeed = 100;
+            }
+
+            activePowerup = type;
+            powerupTypes[type].effect();
+            document.getElementById('powerup').innerHTML = `
+                Active: ${type.charAt(0).toUpperCase() + type.slice(1)}
+                <div class="powerup-icon" style="background: rgb(${powerupTypes[type].color})"></div>
+            `;
+
+            powerupTimer = setTimeout(() => {
+                activePowerup = null;
+                gameSpeed = 100;
+                document.getElementById('powerup').innerHTML = 'Active: None<div class="powerup-icon"></div>';
+            }, powerupTypes[type].duration);
+        }
         
         function drawGame() {
             if (isGameOver) return;
+
+            updateParticles();
 
             // Move snake
             const head = {x: snake[0].x + dx, y: snake[0].y + dy};
             snake.unshift(head);
             
-            // Check if food eaten
-            if(head.x === food.x && head.y === food.y) {
-                score += 10;
+            // Check collisions
+            if (head.x === food.x && head.y === food.y) {
+                score += activePowerup === 'double' ? 20 : 10;
                 document.getElementById('score').innerHTML = `Score: ${score}`;
-                // Increase speed
-                clearInterval(gameLoop);
-                gameSpeed = Math.max(50, gameSpeed - 2);
-                gameLoop = setInterval(drawGame, gameSpeed);
+                spawnPowerup();
+                createParticles(head.x * gridSize, head.y * gridSize, '255, 69, 0');
                 
-                // Generate new food position
                 do {
                     food = {
                         x: Math.floor(Math.random() * tileCount),
@@ -196,21 +325,31 @@
             } else {
                 snake.pop();
             }
+
+            if (powerup && head.x === powerup.x && head.y === powerup.y) {
+                activatePowerup(powerup.type);
+                createParticles(head.x * gridSize, head.y * gridSize, powerupTypes[powerup.type].color);
+                powerup = null;
+            }
             
-            // Check collision
-            if(head.x < 0 || head.x >= tileCount || 
+            // Check game over
+            if (head.x < 0 || head.x >= tileCount || 
                head.y < 0 || head.y >= tileCount ||
-               snake.slice(1).some(part => part.x === head.x && part.y === head.y)) {
+               (snake.slice(1).some(part => part.x === head.x && part.y === head.y) && activePowerup !== 'ghost')) {
                 gameOver();
                 return;
             }
             
-            // Clear canvas
-            ctx.fillStyle = '#1a1a2e';
+            // Draw game
+            ctx.fillStyle = '#0f0c29';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw grid
-            ctx.strokeStyle = '#2a2a4e';
+            // Grid with gradient
+            const gridGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gridGradient.addColorStop(0, 'rgba(110, 110, 253, 0.1)');
+            gridGradient.addColorStop(1, 'rgba(110, 110, 253, 0.2)');
+            ctx.strokeStyle = gridGradient;
+            
             for(let i = 0; i < tileCount; i++) {
                 ctx.beginPath();
                 ctx.moveTo(i * gridSize, 0);
@@ -223,37 +362,110 @@
             }
             
             // Draw snake
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, '#4CAF50');
-            gradient.addColorStop(1, '#45a049');
-            ctx.fillStyle = gradient;
             snake.forEach((part, index) => {
+                const gradient = ctx.createRadialGradient(
+                    part.x * gridSize + gridSize/2, 
+                    part.y * gridSize + gridSize/2, 
+                    0,
+                    part.x * gridSize + gridSize/2, 
+                    part.y * gridSize + gridSize/2, 
+                    gridSize
+                );
+
                 if (index === 0) {
-                    // Draw head
-                    ctx.fillStyle = '#66bb6a';
+                    gradient.addColorStop(0, '#6e6efd');
+                    gradient.addColorStop(1, '#4a4afd');
                 } else {
-                    ctx.fillStyle = gradient;
+                    gradient.addColorStop(0, '#4a4afd');
+                    gradient.addColorStop(1, '#2a2afd');
                 }
-                ctx.fillRect(part.x * gridSize + 1, part.y * gridSize + 1, gridSize - 2, gridSize - 2);
+
+                if (activePowerup === 'ghost') {
+                    ctx.globalAlpha = 0.5;
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(
+                    part.x * gridSize + 1, 
+                    part.y * gridSize + 1, 
+                    gridSize - 2, 
+                    gridSize - 2,
+                    5
+                );
+                ctx.fill();
+                ctx.globalAlpha = 1;
             });
             
-            // Draw food with glow effect
+            // Draw food with glow
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#ff4444';
             ctx.fillStyle = '#ff4444';
             ctx.beginPath();
-            ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI * 2);
+            ctx.arc(
+                food.x * gridSize + gridSize/2, 
+                food.y * gridSize + gridSize/2, 
+                gridSize/2 - 2, 
+                0, 
+                Math.PI * 2
+            );
             ctx.fill();
             ctx.shadowBlur = 0;
+
+            // Draw powerup if exists
+            if (powerup) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgb(${powerupTypes[powerup.type].color
+            // Draw powerup if exists
+            if (powerup) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgb(${powerupTypes[powerup.type].color})`;
+                ctx.fillStyle = `rgb(${powerupTypes[powerup.type].color})`;
+                ctx.beginPath();
+                ctx.arc(
+                    powerup.x * gridSize + gridSize/2,
+                    powerup.y * gridSize + gridSize/2,
+                    gridSize/3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+
+                // Animated ring around powerup
+                ctx.strokeStyle = `rgb(${powerupTypes[powerup.type].color})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(
+                    powerup.x * gridSize + gridSize/2,
+                    powerup.y * gridSize + gridSize/2,
+                    gridSize/2,
+                    performance.now() / 500,
+                    performance.now() / 500 + Math.PI
+                );
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
         }
         
         function gameOver() {
             isGameOver = true;
             clearInterval(gameLoop);
-            if (score > highScore) {
+            const isNewHighScore = score > highScore;
+            if (isNewHighScore) {
                 highScore = score;
                 localStorage.setItem('snakeHighScore', highScore);
                 document.getElementById('highScore').innerHTML = `High Score: ${highScore}`;
+                document.getElementById('newHighScore').style.display = 'block';
+                // Celebration particles
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        createParticles(
+                            Math.random() * canvas.width,
+                            Math.random() * canvas.height,
+                            '255, 215, 0'
+                        );
+                    }, i * 100);
+                }
             }
             document.getElementById('finalScore').innerHTML = `Score: ${score}`;
             document.getElementById('gameOver').style.display = 'block';
@@ -263,15 +475,26 @@
             isGameOver = false;
             snake = [{x: 10, y: 10}];
             food = {x: 15, y: 15};
+            powerup = null;
             dx = 0;
             dy = 0;
             score = 0;
             gameSpeed = 100;
+            activePowerup = null;
+            if (powerupTimer) clearTimeout(powerupTimer);
             document.getElementById('score').innerHTML = `Score: ${score}`;
+            document.getElementById('powerup').innerHTML = 'Active: None<div class="powerup-icon"></div>';
             document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('newHighScore').style.display = 'none';
             clearInterval(gameLoop);
             gameLoop = setInterval(drawGame, gameSpeed);
+            particles = [];
         }
+        
+        window.addEventListener('resize', () => {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        });
         
         gameLoop = setInterval(drawGame, gameSpeed);
     </script>
